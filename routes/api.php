@@ -8,6 +8,8 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\AvailabilityController;
+use App\Http\Controllers\ScheduleController;
 
 Route::post('login',[AuthController::class,'login']);
 Route::post('register',[AuthController::class,'register']);
@@ -30,6 +32,11 @@ Route::group(['prefix'=>'user','middleware'=>'UserAuth'],function(){
 	Route::post('account/delete', [UserController::class, 'deleteAccount']);
 	Route::post('update/profile/image', [UserController::class, 'updateProfileImage']);
     Route::post('/billing/verify-payment', [BillingController::class, 'verifyPayment']);
+    Route::post('/schedules', [ScheduleController::class, 'store']);
+    Route::post('/schedules/search', [ScheduleController::class, 'search']);
+    Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy']);
 
 });
+
+Route::post('/availability/{slug}', [AvailabilityController::class, 'request']);
 
