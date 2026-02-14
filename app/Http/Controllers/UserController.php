@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Models\ResetCodePassword;
 use App\Mail\SendCodeResetPasswordMail;
 use Illuminate\Support\Facades\Validator;
+use App\Models\UserDeletedAccount;
 
 class UserController extends Controller
 {
@@ -33,73 +34,6 @@ class UserController extends Controller
 
         return response()->json(['error' => 'Unauthorized'], 401);
     }
-
-    // public function edit_info(Request $request){
-
-    //     try {
-        
-    //         $userId = Auth::guard('user')->user()->id;
-
-    //         $validatedData = $request->validate([
-    //             'user_name' => 'required|string|max:255',
-    //             'firstname' => 'required|string|max:255',
-    //             'lastname' => 'required|string|max:255',
-    //             'gender' => 'required|string|max:255',
-    //             'phone' => [
-    //                 'required',
-    //                 'numeric',
-    //                 'unique:users,phone,' . $userId,
-    //                 'unique:admins,phone,',
-    //             ],
-    //                 'email' => [
-    //                 'required',
-    //                 'email',
-    //                 'unique:users,email,' . $userId,
-    //                 'unique:admins,email,' . $userId,
-    //             ],
-    //                 'birthdate' => [
-    //                 'required',
-    //                 'date',
-    //             ],
-
-    //         ]);
-
-    //         $user = User::find($userId);
-
-    //         if (!$user) {
-    //             return response()->json([
-    //                 'status' => 'error',
-    //                 'message' => 'User not found.'
-    //             ], 404);
-    //         }
-
-    //         $user->update($validatedData);
-
-    //         return response()->json([
-    //             'status' => 'success',
-    //             'message' => 'Data updated successfully!',
-    //         ], 200);
-
-    //     } catch (\Illuminate\Validation\ValidationException $e) {
-        
-    //         return response()->json([
-    //             'status' => 'error',
-    //             'message' => 'Validation errors occurred.',
-    //             'errors' => $e->errors(),
-    //         ], 422);
-
-    //     } catch (\Exception $e) {
-            
-    //         \Log::error('Error occurred while editing user info: ' . $e->getMessage());
-
-    //         return response()->json([
-    //             'status' => 'error',
-    //             'message' => 'An unexpected error occurred. Please try again later.',
-    //         ], 500);
-        
-    //     }
-        
-    // }
 
     public function edit_info(Request $request){
         try {
@@ -246,16 +180,6 @@ class UserController extends Controller
         return $number;
     }
 
-    // public function incrementVisitCount()
-    // {
-    //     $today = now()->toDateString();
-    //     $visit = Visit::firstOrCreate(['date' => $today], ['count' => 0]);
-
-    //     $visit->increment('count');
-
-    //     return response()->json(['message' => 'Visit count incremented']);
-    // }
-
     public function incrementVisitCount(){
         $today = now()->toDateString();
 
@@ -311,8 +235,7 @@ class UserController extends Controller
         }
     }
 
-    public function deleteAccount(Request $request)
-    {
+    public function deleteAccount(Request $request){
         try {
             $request->validate([
                 'password' => 'required|string',
@@ -320,7 +243,6 @@ class UserController extends Controller
 
             $user = Auth::guard('user')->user();
 
-            // Check if the password is correct
             if (!Hash::check($request->password, $user->password)) {
                 return response()->json([
                     'status' => 'error',
@@ -329,6 +251,16 @@ class UserController extends Controller
                     ]
                 ], 422);
             }
+
+            UserDeletedAccount::create([
+                'user_id'   => $user->id,
+                'firstname' => $user->firstname,
+                'lastname'  => $user->lastname,
+                'email'     => $user->email,
+                'phone'     => $user->phone,
+                'country'   => $user->country,
+                'deleted_at'=> now(),
+            ]);
 
             $user->delete();
 
