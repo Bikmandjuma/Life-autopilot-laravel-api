@@ -35,7 +35,7 @@ Route::group(['prefix'=>'user','middleware'=>'UserAuth'],function(){
     Route::post('/schedules', [ScheduleController::class, 'store']);
     Route::post('/schedules/search', [ScheduleController::class, 'search']);
     Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy']);
-
+    Route::post('/userDeletedAccount', [UserController::class, 'deleteAccount']);
 });
 
 Route::post('/availability/{slug}', [AvailabilityController::class, 'request']);

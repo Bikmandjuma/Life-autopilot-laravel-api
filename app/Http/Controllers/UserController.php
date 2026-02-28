@@ -236,7 +236,9 @@ class UserController extends Controller
     }
 
     public function deleteAccount(Request $request){
+        
         try {
+
             $request->validate([
                 'password' => 'required|string',
             ]);
@@ -270,16 +272,25 @@ class UserController extends Controller
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
+        
             return response()->json([
                 'status' => 'error',
                 'errors' => $e->errors(),
             ], 422);
+        
+            \Log::error('errors: ' . $e->errors());
+
         } catch (\Exception $e) {
+        
             return response()->json([
                 'status' => 'error',
                 'message' => 'An error occurred while deleting your account.',
             ], 500);
+
+            \Log::error('errors: ' . $e->errors());
+            
         }
+    
     }
 
     public function updateProfileImage(Request $request)

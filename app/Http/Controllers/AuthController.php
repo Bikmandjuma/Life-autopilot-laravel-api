@@ -9,6 +9,10 @@ use App\Models\Admin;
 use App\Models\ResetCodePassword;
 use App\Models\CodeToRegister;
 use App\Services\SendGridService;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\ResetPasswordCodeMail;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -317,78 +321,122 @@ class AuthController extends Controller
         }
     }
 
+    public function forgot_password(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+        ], [
+            'email.required' => 'Please enter an email!',
+            'email.email' => 'Please enter a valid email address!',
+        ]);
 
-    public function forgot_password(Request $request){
+        $email = strtolower(trim($request->email));
 
-        try {
-            $request->validate([
-                'email' => 'required|email',
-            ], [
-                'email.required' => 'Please enter an email!',
-                'email.email' => 'Please enter a valid email address !',
-            ]);
+        // Check if email exists
+        $exists = Admin::whereRaw('LOWER(email)=?', [$email])->exists() ||
+                  User::whereRaw('LOWER(email)=?', [$email])->exists();
 
-            // $email = $request->input('email');
-
-            // $existsInAdmins = Admin::where('email', $email)->exists();
-            // $existsInUsers = User::where('email', $email)->exists();
-
-            // if (!$existsInAdmins && !$existsInUsers) {
-            //     return response()->json([
-            //         'status' => 'error',
-            //         'message' => 'The email doesn\'t exist in our database !',
-            //     ], 404);
-            // }
-
-            $email = trim(strtolower($request->email));
-
-            $existsInAdmins = Admin::whereRaw('LOWER(email) = ?', [$email])->exists();
-            $existsInUsers  = User::whereRaw('LOWER(email) = ?', [$email])->exists();
-
-            if (!$existsInAdmins && !$existsInUsers) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'The email does not exist in our database!',
-                ], 404);
-            }
-
-            ResetCodePassword::where('email', $email)->delete();
-
-            $data = [
-                'email' => $email,
-                'code' => mt_rand(100000, 999999),
-            ];
-
-            $reset_data = ResetCodePassword::create($data);
-
-            $html = view('emails.send-code-reset-password', ['code' => $reset_data->code])->render();
-
-            SendGridService::send(
-                $reset_data->email,
-                'reset code password',
-                $html
-            );
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'A reset code has been sent to your email.',
-            ], 200);
-    
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        if (!$exists) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Validation errors occurr.',
-                'errors' => $e->errors(),
-            ], 422);
-        } catch (\Exception $e) {
-            \Log::error('Forgot password failed: ' . $e->getMessage());
-
-            return response()->json([
-                'status' => 'error',
-                'message' => 'An error occurred while processing your request. ' . $e->getMessage(),
-            ], 500);
+                'message' => 'This email is not registered in our system.',
+            ], 404);
         }
+
+        // Rate limit per email (max 3 requests per 5 minutes)
+        $key = 'forgot-password:' . $email;
+
+        if (RateLimiter::tooManyAttempts($key, 3)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Too many reset attempts. Please try again later.',
+            ], 429);
+        }
+
+        RateLimiter::hit($key, 300); // 5 minutes
+
+        // Delete old codes
+        ResetCodePassword::where('email', $email)->delete();
+
+        // Generate OTP
+        $otp = random_int(100000, 999999);
+
+        ResetCodePassword::create([
+            'email' => $email,
+            'code' => Hash::make($otp),
+            'expires_at' => now()->addMinutes(10),
+            'attempts' => 0,
+        ]);
+
+        Mail::to($email)->send(new ResetPasswordCodeMail($otp));
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'A reset code has been sent to your email.',
+        ], 200);
     }
+
+    // public function verifyResetCode(Request $request)
+    // {
+    //     try {
+    //         $request->validate([
+    //             'email' => 'required|email',
+    //             'code'  => 'required|digits:6',
+    //         ], [
+    //             'email.required' => 'Email is required.',
+    //             'email.email'    => 'Invalid email format.',
+    //             'code.required'  => 'Reset code is required.',
+    //             'code.digits'    => 'Reset code must be exactly 6 digits.',
+    //         ]);
+
+    //         $email = trim(strtolower($request->email));
+
+    //         $exists =
+    //             User::where('email', $email)->exists() ||
+    //             Admin::where('email', $email)->exists();
+
+    //         if (!$exists) {
+    //             return response()->json([
+    //                 'status' => 'error',
+    //                 'message' => 'The email does not exist in our system.',
+    //             ], 404);
+    //         }
+
+    //         // verify code
+    //         $reset = ResetCodePassword::where('email', $email)
+    //             ->where('code', $request->code)
+    //             ->first();
+
+    //         if (!$reset) {
+    //             return response()->json([
+    //                 'status' => 'error',
+    //                 'message' => 'Invalid or expired reset code.',
+    //             ], 400);
+    //         }
+
+    //         return response()->json([
+    //             'status' => 'success',
+    //             'message' => 'Reset code verified successfully.',
+    //         ], 200);
+
+    //     } catch (\Illuminate\Validation\ValidationException $e) {
+
+    //         return response()->json([
+    //             'status' => 'error',
+    //             'message' => 'Validation errors occurr.',
+    //             'errors' => $e->errors(),
+    //         ], 422);
+
+    //     } catch (\Exception $e) {
+
+    //         Log::error('Verify reset code failed: ' . $e->getMessage());
+
+    //         return response()->json([
+    //             'status' => 'error',
+    //             'message' => 'An error occurred while processing your request. ' . $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
 
     public function verifyResetCode(Request $request)
     {
@@ -396,31 +444,11 @@ class AuthController extends Controller
             $request->validate([
                 'email' => 'required|email',
                 'code'  => 'required|digits:6',
-            ], [
-                'email.required' => 'Email is required.',
-                'email.email'    => 'Invalid email format.',
-                'code.required'  => 'Reset code is required.',
-                'code.digits'    => 'Reset code must be exactly 6 digits.',
             ]);
 
-            $email = trim(strtolower($request->email));
+            $email = strtolower(trim($request->email));
 
-            // ensure email exists in User or Admin
-            $exists =
-                User::where('email', $email)->exists() ||
-                Admin::where('email', $email)->exists();
-
-            if (!$exists) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'The email does not exist in our system.',
-                ], 404);
-            }
-
-            // verify code
-            $reset = ResetCodePassword::where('email', $email)
-                ->where('code', $request->code)
-                ->first();
+            $reset = ResetCodePassword::where('email', $email)->first();
 
             if (!$reset) {
                 return response()->json([
@@ -428,6 +456,38 @@ class AuthController extends Controller
                     'message' => 'Invalid or expired reset code.',
                 ], 400);
             }
+
+            // 🔒 Check if locked (5 wrong attempts)
+            if ($reset->attempts >= 5) {
+                return response()->json([
+                    'status' => 'locked',
+                    'message' => 'Too many failed attempts. Please request a new code.',
+                ], 423);
+            }
+
+            // ⏳ Check expiry
+            if (now()->greaterThan($reset->expires_at)) {
+                $reset->delete();
+
+                return response()->json([
+                    'status' => 'expired',
+                    'message' => 'Reset code has expired. Please request a new one.',
+                ], 410);
+            }
+
+            // 🔐 Verify hashed OTP
+            if (!Hash::check($request->code, $reset->code)) {
+
+                $reset->increment('attempts');
+
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Invalid reset code.',
+                ], 400);
+            }
+
+            // ✅ Success → delete code
+            $reset->delete();
 
             return response()->json([
                 'status' => 'success',
@@ -438,7 +498,6 @@ class AuthController extends Controller
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Validation errors occurr.',
                 'errors' => $e->errors(),
             ], 422);
 
@@ -448,11 +507,10 @@ class AuthController extends Controller
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'An error occurred while processing your request. ' . $e->getMessage(),
+                'message' => 'Server error.',
             ], 500);
         }
     }
-
     public function resendRegisterResetCode(Request $request){
         try {
             $request->validate([
