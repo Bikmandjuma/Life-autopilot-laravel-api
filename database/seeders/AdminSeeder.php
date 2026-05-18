@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
+use App\Models\Admin;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -11,17 +11,15 @@ class AdminSeeder extends Seeder
 {
     public function run(): void
     {
-        User::insert([
+        Admin::insert([
             [
-                'firstname' => 'Bikman',
-                'lastname'  => 'Djuma',
+                'firstname' => 'Elyse',
+                'lastname'  => 'Niyonkuru',
                 'gender'    => 'male',
-                'email'     => 'bikmangeek@gmail.com',
-                'country'   => 'Rwanda',
-                'phone'     => '0785389000',
+                'email'     => 'teclagroupltd@gmail.com',
+                'phone'     => '0785389001',
                 'image'     => 'user.png',
-                'birthdate' => '2000-12-20',
-                'professionalism' => 'Developer',
+                'dob' => '2000-12-20',
                 'email_verified_at' => now(),
                 'remember_token' => Str::random(10),
                 'password'  => Hash::make('bugarama'),

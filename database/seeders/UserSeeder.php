@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use App\Models\Admin;
+use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -16,16 +16,17 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-
-        Admin::insert([
+        User::insert([
             [
-                'firstname' => 'Elyse',
-                'lastname'  => 'Niyonkuru',
+                'firstname' => 'Bikman',
+                'lastname'  => 'Djuma',
                 'gender'    => 'male',
-                'email'     => 'teclagroupltd@gmail.com',
-                'phone'     => '0785389001',
+                'email'     => 'bikmangeek@gmail.com',
+                'country'   => 'Rwanda',
+                'phone'     => '0785389000',
                 'image'     => 'user.png',
-                'dob' => '2000-12-20',
+                'birthdate' => '2000-12-20',
+                'professionalism' => 'Developer',
                 'email_verified_at' => now(),
                 'remember_token' => Str::random(10),
                 'password'  => Hash::make('bugarama'),
@@ -33,5 +34,7 @@ class UserSeeder extends Seeder
                 'updated_at'=> now(),
             ],
         ]);
+
+        
     }
 }
