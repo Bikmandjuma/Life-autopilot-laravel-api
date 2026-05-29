@@ -16,6 +16,8 @@ use App\Models\ResetCodePassword;
 use App\Mail\SendCodeResetPasswordMail;
 use Illuminate\Support\Facades\Validator;
 use App\Models\UserDeletedAccount;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\File;
 
 class UserController extends Controller
 {
@@ -298,7 +300,7 @@ class UserController extends Controller
         $user = Auth::guard('user')->user();
 
         $request->validate([
-            'image' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+            'image' => 'required|image|mimes:jpg,jpeg,png|max:5048',
         ]);
 
         if ($user->image && file_exists(public_path('images/User/' . $user->image))) {
@@ -438,5 +440,76 @@ class UserController extends Controller
         }
 
     }
+
+
+    public function Updateimage(Request $request){
+        try {
+
+            $request->validate([
+
+                'image' => 'required|image|mimes:jpg,jpeg,png|max:5048',
+
+            ]);
+
+            $user = Auth::guard('user')->user();
+
+            if (
+                $user->image &&
+                File::exists(
+                    public_path($user->image)
+                )
+            ) {
+
+                File::delete(
+                    public_path($user->image)
+                );
+
+            }
+
+            $image = $request->file('image');
+
+            $imageName =
+                time() .
+                "_" .
+                rand(1000, 9999) .
+                "." .
+                $image->getClientOriginalExtension();
+
+            $image->move(
+                public_path('uploads/users'),
+                $imageName
+            );
+
+            $user->image =
+                "uploads/users/" .
+                $imageName;
+
+            $user->save();
+
+            return response()->json([
+
+                'success' => true,
+
+                'message' =>
+                    'image updated successfully',
+
+                'image' =>
+                    asset($user->image),
+
+            ], 200);
+
+        } catch (\Throwable $th) {
+
+            return response()->json([
+
+                'success' => false,
+
+                'message' => $th->getMessage(),
+
+            ], 500);
+
+        }
+    }
+
 
 }

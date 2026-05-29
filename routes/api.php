@@ -36,6 +36,7 @@ Route::group(['prefix'=>'user','middleware'=>'UserAuth'],function(){
     Route::post('/schedules/search', [ScheduleController::class, 'search']);
     Route::delete('/schedules/{id}', [ScheduleController::class, 'destroy']);
     Route::post('/userDeletedAccount', [UserController::class, 'deleteAccount']);
+    Route::post('/UserUpdateimage', [UserController::class, 'Updateimage']);
 });
 
 Route::post('/availability/{slug}', [AvailabilityController::class, 'request']);
